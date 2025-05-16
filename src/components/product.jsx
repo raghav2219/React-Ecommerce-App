@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import axios from "axios"; // Import axios
 import { useDispatch } from "react-redux";
 import { addCart } from "../redux/action";
 
@@ -23,10 +24,15 @@ const Products = () => {
     let componentMounted = true;
     const getProducts = async () => {
       setLoading(true);
-      const response = await fetch("https://fakestoreapi.com/products/");
-      if (componentMounted) {
-        setData(await response.clone().json());
-        setFilter(await response.json());
+      try {
+        const response = await axios.get("https://fakestoreapi.com/products/");
+        if (componentMounted) {
+          setData(response.data);
+          setFilter(response.data);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error);
         setLoading(false);
       }
 
@@ -131,8 +137,6 @@ const Products = () => {
                 </div>
                 <ul className="list-group list-group-flush">
                   <li className="list-group-item lead">$ {product.price}</li>
-                  {/* <li className="list-group-item">Dapibus ac facilisis in</li>
-                    <li className="list-group-item">Vestibulum at eros</li> */}
                 </ul>
                 <div className="card-body">
                   <Link
@@ -158,6 +162,7 @@ const Products = () => {
       </>
     );
   };
+
   return (
     <>
       <div className="container my-3 py-3">
