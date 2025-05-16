@@ -1,32 +1,38 @@
 import React, { useState, useEffect } from "react";
+import { useDispatch } from "react-redux";
+import { addCart } from "../redux/action";
 
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 
-import axios from "axios"; // Import Axios
+import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const Products = () => {
   const [data, setData] = useState([]);
   const [filter, setFilter] = useState(data);
   const [loading, setLoading] = useState(false);
 
+  const dispatch = useDispatch();
+
+  const addProduct = (product) => {
+    dispatch(addCart(product));
+  };
+
   useEffect(() => {
     let componentMounted = true;
     const getProducts = async () => {
       setLoading(true);
-      try {
-        const response = await axios.get("https://fakestoreapi.com/products/");
-        if (componentMounted) {
-          setData(response.data);
-          setFilter(response.data);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error("Error fetching products:", error);
+      const response = await fetch("https://fakestoreapi.com/products/");
+      if (componentMounted) {
+        setData(await response.clone().json());
+        setFilter(await response.json());
         setLoading(false);
       }
 
-      return () => { componentMounted = false; };
+      return () => {
+        componentMounted = false;
+      };
     };
 
     getProducts();
@@ -125,7 +131,26 @@ const Products = () => {
                 </div>
                 <ul className="list-group list-group-flush">
                   <li className="list-group-item lead">$ {product.price}</li>
+                  {/* <li className="list-group-item">Dapibus ac facilisis in</li>
+                    <li className="list-group-item">Vestibulum at eros</li> */}
                 </ul>
+                <div className="card-body">
+                  <Link
+                    to={"/product/" + product.id}
+                    className="btn btn-dark m-1"
+                  >
+                    Buy Now
+                  </Link>
+                  <button
+                    className="btn btn-dark m-1"
+                    onClick={() => {
+                      toast.success("Added to cart");
+                      addProduct(product);
+                    }}
+                  >
+                    Add to Cart
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -133,7 +158,6 @@ const Products = () => {
       </>
     );
   };
-
   return (
     <>
       <div className="container my-3 py-3">
