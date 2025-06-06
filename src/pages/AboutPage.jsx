@@ -10,11 +10,11 @@ const AboutPage = () => {
         <div className="row align-items-center">
           <div className="col-lg-6">
             <h1 className="display-4 fw-bold mb-4">
-              <i className="fas fa-shopping-bag me-2 text-primary"></i>About React Ecommerce
+              <i className="fas fa-shopping-bag me-2 text-primary"></i>About Zenith Store
             </h1>
             <div className="about-content">
               <p className="lead mb-4">
-                Welcome to React Ecommerce, your premier destination for quality products at unbeatable prices. 
+                Welcome to Zenith Store, your premier destination for quality products at unbeatable prices. 
                 We're dedicated to providing exceptional shopping experiences to our valued customers.
               </p>
               <div className="feature-list">

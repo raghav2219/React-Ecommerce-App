@@ -1,16 +1,38 @@
 const express = require('express');
 const router = express.Router();
 const Cart = require('../models/Cart');
+const jwt = require('jsonwebtoken');
+
+// Authentication middleware
+const auth = (req, res, next) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Authentication required' });
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        console.error('Auth error:', error);
+        return res.status(401).json({ message: 'Invalid or expired token' });
+    }
+};
+
+// Apply auth middleware to all cart routes
+router.use(auth);
 
 // Add item to cart
 router.post('/add', async (req, res) => {
     try {
         const { userId, product } = req.body;
         
-        // Find or create cart
-        let cart = await Cart.findOne({ userId });
+        // Safely get or create cart for this user
+        const cart = await Cart.getOrCreate(userId);
         if (!cart) {
-            cart = new Cart({ userId });
+            return res.status(500).json({ 
+                message: 'Failed to get or create cart' 
+            });
         }
         
         // Add or update product
@@ -20,6 +42,7 @@ router.post('/add', async (req, res) => {
         } else {
             cart.items.push({
                 productId: product.id,
+                productName: product.name,
                 quantity: 1,
                 price: product.price
             });
@@ -31,7 +54,10 @@ router.post('/add', async (req, res) => {
         await cart.save();
         res.json(cart);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error in cart add:', error);
+        res.status(500).json({ 
+            message: error.message || 'Error adding item to cart' 
+        });
     }
 });
 
@@ -39,26 +65,37 @@ router.post('/add', async (req, res) => {
 router.put('/update/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
-        const { cart } = req.body;
+        const { items } = req.body;
         
-        // Find or create cart
-        let cartDoc = await Cart.findOne({ userId });
-        if (!cartDoc) {
-            cartDoc = new Cart({ userId });
+        // Verify the user is updating their own cart
+        if (req.user.userId !== userId) {
+            return res.status(403).json({ message: 'Not authorized to update this cart' });
         }
         
-        // Update cart items
-        cartDoc.items = cart.map(item => ({
-            productId: item.id,
-            quantity: item.qty,
+        // Safely get or create cart for this user
+        const cartDoc = await Cart.getOrCreate(userId);
+        if (!cartDoc) {
+            return res.status(500).json({ 
+                message: 'Failed to get or create cart' 
+            });
+        }
+        
+        // Update cart items with the new structure
+        cartDoc.items = items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
             price: item.price
         }));
         
-        // Update total
-        cartDoc.total = cart.reduce((sum, item) => sum + (item.qty * item.price), 0);
+        // Recalculate total
+        cartDoc.total = cartDoc.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
         
         await cartDoc.save();
-        res.json(cartDoc);
+        res.json({
+            message: 'Cart updated successfully',
+            cart: cartDoc
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

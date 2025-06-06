@@ -1,7 +1,9 @@
 const express = require('express');
 const connectDB = require('./config/db');
 const cartRoutes = require('./routes/cart');
+const authRoutes = require('./routes/auth');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -12,7 +14,22 @@ connectDB();
 app.use(express.json());
 app.use(cors());
 
+// JWT middleware
+app.use((req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = decoded;
+        } catch (error) {
+            console.log('Invalid token');
+        }
+    }
+    next();
+});
+
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
 
 const PORT = process.env.PORT || 5000;

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Footer, Navbar } from "../components";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +12,7 @@ const Login = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,12 +64,11 @@ const Login = () => {
 
     if (Object.keys(errors).length === 0) {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await login(formData);
         toast.success('Login successful!');
         navigate('/');
       } catch (error) {
-        toast.error('Login failed. Please try again.');
+        toast.error(error.response?.data?.message || 'Login failed. Please try again.');
       }
     }
     setLoading(false);

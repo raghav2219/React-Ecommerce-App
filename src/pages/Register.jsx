@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
-import { Footer, Navbar } from "../components";
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { toast } from "react-hot-toast";
+import { toast } from 'react-hot-toast';
+import { useAuth } from "../context/AuthContext";
+import { Footer, Navbar } from "../components";
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -13,6 +14,51 @@ const Register = () => {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const { register } = useAuth();
+
+    const validateField = (fieldName, value, errorsObj = { ...errors }) => {
+        switch (fieldName) {
+            case 'name':
+                if (!value.trim()) {
+                    errorsObj.name = 'Name is required';
+                } else if (value.trim().length < 2) {
+                    errorsObj.name = 'Name must be at least 2 characters';
+                } else {
+                    delete errorsObj.name;
+                }
+                break;
+            case 'email':
+                if (!value.trim()) {
+                    errorsObj.email = 'Email is required';
+                } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
+                    errorsObj.email = 'Invalid email address';
+                } else {
+                    delete errorsObj.email;
+                }
+                break;
+            case 'password':
+                if (!value.trim()) {
+                    errorsObj.password = 'Password is required';
+                } else if (value.length < 6) {
+                    errorsObj.password = 'Password must be at least 6 characters';
+                } else {
+                    delete errorsObj.password;
+                }
+                break;
+            case 'confirmPassword':
+                if (!value.trim()) {
+                    errorsObj.confirmPassword = 'Please confirm your password';
+                } else if (value !== formData.password) {
+                    errorsObj.confirmPassword = 'Passwords do not match';
+                } else {
+                    delete errorsObj.confirmPassword;
+                }
+                break;
+            default:
+                break;
+        }
+        return errorsObj;
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -21,77 +67,103 @@ const Register = () => {
             [name]: value
         }));
         
-        validateField(name, value);
-    };
-
-    const validateField = (fieldName, value) => {
-        const newErrors = { ...errors };
-        
-        switch (fieldName) {
-            case 'name':
-                if (!value.trim()) {
-                    newErrors.name = 'Name is required';
-                } else if (value.length < 2) {
-                    newErrors.name = 'Name must be at least 2 characters';
-                } else {
-                    delete newErrors.name;
-                }
-                break;
-            case 'email':
-                if (!value.trim()) {
-                    newErrors.email = 'Email is required';
-                } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(value)) {
-                    newErrors.email = 'Invalid email address';
-                } else {
-                    delete newErrors.email;
-                }
-                break;
-            case 'password':
-                if (!value.trim()) {
-                    newErrors.password = 'Password is required';
-                } else if (value.length < 6) {
-                    newErrors.password = 'Password must be at least 6 characters';
-                } else {
-                    delete newErrors.password;
-                }
-                break;
-            case 'confirmPassword':
-                if (!value.trim()) {
-                    newErrors.confirmPassword = 'Confirm password is required';
-                } else if (value !== formData.password) {
-                    newErrors.confirmPassword = 'Passwords do not match';
-                } else {
-                    delete newErrors.confirmPassword;
-                }
-                break;
-            default:
-                break;
-        }
-        
+        // Validate single field
+        const newErrors = validateField(name, value);
         setErrors(newErrors);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        console.log('Form submitted');
         
         // Validate all fields
-        const allErrors = {};
+        const newErrors = {};
         Object.entries(formData).forEach(([key, value]) => {
-            validateField(key, value);
+            validateField(key, value, newErrors);
         });
 
-        if (Object.keys(errors).length === 0) {
-            try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                toast.success('Registration successful! Please login to continue.');
-                navigate('/login');
-            } catch (error) {
-                toast.error('Registration failed. Please try again.');
-            }
+        // Remove empty errors
+        Object.keys(newErrors).forEach(key => {
+            if (!newErrors[key]) delete newErrors[key];
+        });
+
+        setErrors(newErrors);
+        console.log('Form validation errors:', newErrors);
+
+        if (Object.keys(newErrors).length > 0) {
+            toast.error('Please fix the form errors');
+            return;
         }
-        setLoading(false);
+
+        setLoading(true);
+        
+        try {
+            const registrationData = {
+                name: formData.name.trim(),
+                email: formData.email.trim().toLowerCase(),
+                password: formData.password
+            };
+            
+            console.log('Attempting to register user with data:', {
+                ...registrationData,
+                password: '[HIDDEN]'
+            });
+            
+            const response = await register(registrationData);
+            console.log('Registration successful, server response:', {
+                status: response?.status,
+                data: response?.data,
+                hasToken: !!response?.token,
+                hasUser: !!response?.user
+            });
+            
+            // Check if we got a valid response with user data
+            if (response && response.user) {
+                toast.success('Registration successful! Redirecting to login...');
+                
+                // Clear the form
+                setFormData({
+                    name: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: ''
+                });
+                
+                // Redirect to login after a short delay
+                setTimeout(() => {
+                    console.log('Navigating to /login');
+                    navigate('/login');
+                }, 1500);
+            } else {
+                throw new Error('Registration failed. Please try again.');
+            }
+            
+        } catch (error) {
+            console.error('Registration error details:', {
+                name: error.name,
+                message: error.message,
+                response: error.response?.data,
+                status: error.response?.status
+            });
+            
+            let errorMessage = 'Registration failed. Please try again.';
+            
+            if (error.response) {
+                // Server responded with an error
+                errorMessage = error.response.data?.message || errorMessage;
+            } else if (error.request) {
+                // Request was made but no response received
+                errorMessage = 'Unable to connect to the server. Please check your connection.';
+            } else {
+                // Something else happened
+                errorMessage = error.message || errorMessage;
+            }
+            
+            toast.error(errorMessage);
+        } finally {
+            console.log('Registration process completed, setting loading to false');
+            setLoading(false);
+        }
     };
 
     return (
@@ -112,10 +184,8 @@ const Register = () => {
                             <div className="card-body p-5">
                                 <h2 className="card-title text-center mb-4">Create Your Account</h2>
                                 <form onSubmit={handleSubmit}>
-                                    <div className="mb-4">
-                                        <label htmlFor="name" className="form-label fw-semibold">
-                                            <i className="fas fa-user me-2"></i>Full Name
-                                        </label>
+                                    <div className="mb-3">
+                                        <label htmlFor="name" className="form-label">Full Name</label>
                                         <input
                                             type="text"
                                             className={`form-control ${errors.name ? 'is-invalid' : ''}`}
@@ -124,18 +194,11 @@ const Register = () => {
                                             value={formData.name}
                                             onChange={handleChange}
                                             placeholder="Enter your full name"
-                                            disabled={loading}
                                         />
-                                        {errors.name && (
-                                            <div className="invalid-feedback d-block">
-                                                {errors.name}
-                                            </div>
-                                        )}
+                                        {errors.name && <div className="invalid-feedback">{errors.name}</div>}
                                     </div>
-                                    <div className="mb-4">
-                                        <label htmlFor="email" className="form-label fw-semibold">
-                                            <i className="fas fa-envelope me-2"></i>Email Address
-                                        </label>
+                                    <div className="mb-3">
+                                        <label htmlFor="email" className="form-label">Email address</label>
                                         <input
                                             type="email"
                                             className={`form-control ${errors.email ? 'is-invalid' : ''}`}
@@ -144,18 +207,11 @@ const Register = () => {
                                             value={formData.email}
                                             onChange={handleChange}
                                             placeholder="Enter your email"
-                                            disabled={loading}
                                         />
-                                        {errors.email && (
-                                            <div className="invalid-feedback d-block">
-                                                {errors.email}
-                                            </div>
-                                        )}
+                                        {errors.email && <div className="invalid-feedback">{errors.email}</div>}
                                     </div>
-                                    <div className="mb-4">
-                                        <label htmlFor="password" className="form-label fw-semibold">
-                                            <i className="fas fa-lock me-2"></i>Password
-                                        </label>
+                                    <div className="mb-3">
+                                        <label htmlFor="password" className="form-label">Password</label>
                                         <input
                                             type="password"
                                             className={`form-control ${errors.password ? 'is-invalid' : ''}`}
@@ -163,19 +219,12 @@ const Register = () => {
                                             name="password"
                                             value={formData.password}
                                             onChange={handleChange}
-                                            placeholder="Create a password"
-                                            disabled={loading}
+                                            placeholder="Enter your password"
                                         />
-                                        {errors.password && (
-                                            <div className="invalid-feedback d-block">
-                                                {errors.password}
-                                            </div>
-                                        )}
+                                        {errors.password && <div className="invalid-feedback">{errors.password}</div>}
                                     </div>
                                     <div className="mb-4">
-                                        <label htmlFor="confirmPassword" className="form-label fw-semibold">
-                                            <i className="fas fa-lock me-2"></i>Confirm Password
-                                        </label>
+                                        <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
                                         <input
                                             type="password"
                                             className={`form-control ${errors.confirmPassword ? 'is-invalid' : ''}`}
@@ -184,43 +233,25 @@ const Register = () => {
                                             value={formData.confirmPassword}
                                             onChange={handleChange}
                                             placeholder="Confirm your password"
-                                            disabled={loading}
                                         />
-                                        {errors.confirmPassword && (
-                                            <div className="invalid-feedback d-block">
-                                                {errors.confirmPassword}
-                                            </div>
-                                        )}
+                                        {errors.confirmPassword && <div className="invalid-feedback">{errors.confirmPassword}</div>}
                                     </div>
-                                    <div className="d-grid gap-3">
-                                        <button 
-                                            type="submit" 
-                                            className="btn btn-primary py-2"
-                                            disabled={loading}
-                                        >
-                                            {loading ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                    Creating Account...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className="fas fa-user-plus me-2"></i>Create Account
-                                                </>
-                                            )}
-                                        </button>
-                                        <Link to="/login" className="btn btn-outline-primary py-2">
-                                            <i className="fas fa-sign-in-alt me-2"></i>Back to Login
-                                        </Link>
-                                    </div>
-                                    <div className="text-center mt-3">
-                                        <p className="mb-0">
-                                            By creating an account, you agree to our 
-                                            <Link to="/terms" className="text-primary">Terms of Service</Link>
-                                            and 
-                                            <Link to="/privacy" className="text-primary">Privacy Policy</Link>
-                                        </p>
-                                    </div>
+                                    <button 
+                                        type="submit" 
+                                        className="btn btn-primary w-100 py-2 mb-3"
+                                        disabled={loading}
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                Creating Account...
+                                            </>
+                                        ) : 'Create Account'}
+                                    </button>
+                                    <p className="text-center mb-0">
+                                        Already have an account?{' '}
+                                        <Link to="/login" className="text-primary">Sign In</Link>
+                                    </p>
                                 </form>
                             </div>
                         </div>
@@ -229,7 +260,7 @@ const Register = () => {
             </div>
             <Footer />
         </>
-    )
+    );
 };
 
-export default Register
+export default Register;

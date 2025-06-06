@@ -13,8 +13,7 @@ const Home = () => {
             <div className="container">
               <h5 className="card-title fs-1 text fw-lighter">New Season Arrivals</h5>
               <p className="card-text fs-5 d-none d-sm-block ">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Saepe, asperiores quasi? Est, nobis ratione. Ipsam eos magnam reiciendis minima? Odio minima ad hic explicabo adipisci molestiae commodi? Dolores, incidunt dicta!
-              </p>
+                Step into the season in style — discover the latest trends in fashion and electronics, freshly dropped just for you!              </p>
             </div>
           </div>
         </div>

@@ -73,7 +73,6 @@ const ContactPage = () => {
     setLoading(true);
     
     // Validate all fields
-    const allErrors = {};
     Object.entries(formData).forEach(([key, value]) => {
       validateField(key, value);
     });
@@ -137,16 +136,16 @@ const ContactPage = () => {
             <div className="social-links">
               <h5 className="mb-3">Follow Us</h5>
               <div className="d-flex gap-2">
-                <a href="#" className="btn btn-outline-primary rounded-circle p-2">
+                <a href="/" className="btn btn-outline-primary rounded-circle p-2">
                   <i className="fab fa-facebook-f"></i>
                 </a>
-                <a href="#" className="btn btn-outline-primary rounded-circle p-2">
+                <a href="/" className="btn btn-outline-primary rounded-circle p-2">
                   <i className="fab fa-twitter"></i>
                 </a>
-                <a href="#" className="btn btn-outline-primary rounded-circle p-2">
+                <a href="/" className="btn btn-outline-primary rounded-circle p-2">
                   <i className="fab fa-instagram"></i>
                 </a>
-                <a href="#" className="btn btn-outline-primary rounded-circle p-2">
+                <a href="/" className="btn btn-outline-primary rounded-circle p-2">
                   <i className="fab fa-linkedin"></i>
                 </a>
               </div>

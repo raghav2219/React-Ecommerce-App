@@ -9,7 +9,7 @@ const Footer = () => {
           <div className="row">
             <div className="col-md-4 mb-4">
               <h4 className="text-primary mb-3">
-                <i className="fas fa-shopping-bag me-2"></i>React Ecommerce
+                <i className="fas fa-shopping-bag me-2"></i>Zenith Store
               </h4>
               <p className="text-muted mb-4">
                 Your one-stop shop for all your needs. Quality products at great prices.
@@ -83,7 +83,7 @@ const Footer = () => {
                 </div>
                 <div className="mb-3">
                   <i className="fas fa-envelope me-2"></i>
-                  <span>support@reactecommerce.com</span>
+                  <span>support@zenithstore.com</span>
                 </div>
               </div>
             </div>
@@ -91,7 +91,7 @@ const Footer = () => {
           <hr className="my-4" />
           <div className="text-center text-muted">
             <p className="mb-0">
-              © 2025 React Ecommerce. All rights reserved.
+              © 2025 Zenith Store. All rights reserved.
             </p>
           </div>
         </div>
