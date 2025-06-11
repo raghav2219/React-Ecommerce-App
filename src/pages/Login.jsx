@@ -153,11 +153,11 @@ const Login = () => {
                       <i className="fas fa-user-plus me-2"></i>Create Account
                     </Link>
                   </div>
-                  <div className="text-center mt-3">
+                  {/* <div className="text-center mt-3">
                     <Link to="/forgot-password" className="text-primary">
                       Forgot Password?
                     </Link>
-                  </div>
+                  </div> */}
                 </form>
               </div>
             </div>

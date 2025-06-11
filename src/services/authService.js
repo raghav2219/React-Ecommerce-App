@@ -66,19 +66,49 @@ export const login = async (userData) => {
             throw new Error('Invalid response from server');
         }
 
-        // Store user data
+        // Ensure isAdmin is set
+        const userWithAdmin = {
+            ...response.data.user,
+            isAdmin: Boolean(response.data.user.isAdmin)
+        };
+
+        // Store user data with isAdmin
         localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        localStorage.setItem('cart', JSON.stringify(response.data.cart || {}));
+        localStorage.setItem('user', JSON.stringify(userWithAdmin));
+        
+        // Store cart data if available
+        if (response.data.cart && response.data.cart.items) {
+            const cartData = {
+                items: response.data.cart.items.map(item => ({
+                    id: item.productId || item._id,
+                    title: item.productName || 'Product',
+                    price: item.price || 0,
+                    qty: item.quantity || 1,
+                    image: item.image
+                })),
+                total: response.data.cart.total || 0
+            };
+            localStorage.setItem('cart', JSON.stringify(cartData));
+        } else {
+            // Initialize empty cart if none exists
+            localStorage.setItem('cart', JSON.stringify({ items: [], total: 0 }));
+        }
         
         // Log successful login
         console.log('authService: Login successful:', {
-            userId: response.data.user._id,
-            userName: response.data.user.name,
-            userEmail: response.data.user.email
+            userId: userWithAdmin._id || userWithAdmin.id,
+            userName: userWithAdmin.name,
+            userEmail: userWithAdmin.email,
+            isAdmin: userWithAdmin.isAdmin,
+            cartItems: response.data.cart?.items?.length || 0
         });
         
-        return response.data;
+        // Return user data with isAdmin and cart
+        return {
+            ...response.data,
+            user: userWithAdmin,
+            cart: response.data.cart || { items: [], total: 0 }
+        };
     } catch (error) {
         // Handle different types of errors
         if (error.response) {
@@ -101,18 +131,12 @@ export const login = async (userData) => {
     }
 };
 
+/**
+ * Logs out the current user by making a request to the server and clearing local data
+ * @returns {Promise<{success: boolean, message: string}>} Result of the logout operation
+ */
 export const logout = async () => {
-    try {
-        // Make request to backend to clear session and cart
-        const token = localStorage.getItem('token');
-        if (token) {
-            await axios.post(`${API_URL}/logout`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-        }
-
+    const clearLocalData = () => {
         // Clear all user-related data from localStorage
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -135,17 +159,118 @@ export const logout = async () => {
 
         // Dispatch storage event to notify components
         window.dispatchEvent(new Event('storage'));
+    };
+
+    try {
+        const token = localStorage.getItem('token');
+        
+        // Clear local data first to ensure UI updates immediately
+        const userId = JSON.parse(localStorage.getItem('user') || '{}').id;
+        clearLocalData();
+        
+        if (!token) {
+            console.log('No token found, cleared local data only');
+            return { success: true, message: 'Local data cleared' };
+        }
+
+        try {
+            // Make the API call to logout - don't await it to make logout faster
+            axios.post(
+                `${API_URL}/logout`,
+                { userId }, // Send userId to clear cart on server
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            ).catch(err => {
+                console.error('Logout API call failed, but continuing:', err.message);
+            });
+            
+            return { 
+                success: true, 
+                message: 'Logging out...' 
+            };
+        } catch (error) {
+            console.error('Error during logout API call:', error.message);
+            // Still return success since we've cleared local data
+            return { 
+                success: true, 
+                message: 'Logged out (local data cleared)' 
+            };
+        }
     } catch (error) {
         console.error('Error during logout:', error);
-        // Still clear local data even if backend request fails
-        localStorage.clear();
-        sessionStorage.clear();
-        window.dispatchEvent(new Event('storage'));
+        // Clear local data even if something else fails
+        try {
+            clearLocalData();
+        } catch (clearError) {
+            console.error('Error clearing local data during logout:', clearError);
+        }
+        
+        // Return success since we've cleared local data
+        return { 
+            success: true, 
+            message: 'Logged out (local data cleared)'
+        };
     }
 };
 
-export const getCurrentUser = () => {
-    return JSON.parse(localStorage.getItem('user'));
+export const getCurrentUser = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+
+        // Get user data from localStorage first
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            // Ensure isAdmin is a boolean
+            user.isAdmin = Boolean(user.isAdmin);
+            return user;
+        }
+
+        // If no user in localStorage, fetch from server
+        const response = await axios.get(`${API_URL}/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.data && response.data.user) {
+            // Ensure isAdmin is a boolean
+            const user = {
+                ...response.data.user,
+                isAdmin: Boolean(response.data.user.isAdmin)
+            };
+            
+            // Save to localStorage for future use
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            // Update cart data if available
+            if (response.data.cart) {
+                const cartData = {
+                    items: response.data.cart.items || [],
+                    total: response.data.cart.total || 0
+                };
+                localStorage.setItem('cart', JSON.stringify(cartData));
+            }
+            
+            return user;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Error getting current user:', error);
+        // Clear invalid token if there's an error
+        if (error.response && error.response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('cart');
+        }
+        return null;
+    }
 };
 
 export const isAuthenticated = () => {

@@ -19,37 +19,58 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         // Check if user is already logged in
-        const token = localStorage.getItem('token');
-        if (token) {
-            const user = getCurrentUser();
-            if (user) {
-                setUser(user);
-                setIsLoggedIn(true);
+        const checkAuth = async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const user = await getCurrentUser();
+                    if (user) {
+                        setUser(user);
+                        setIsLoggedIn(true);
+                    }
+                } catch (error) {
+                    console.error('Error checking authentication:', error);
+                }
             }
-        }
-        setLoading(false);
+            setLoading(false);
+        };
+        
+        checkAuth();
     }, []);
 
     const handleLogin = async (userData) => {
         try {
-            const response = await login(userData);
-            setUser(response.user);
+            // Perform the login to get the token and user data
+            const loginResponse = await login(userData);
+            
+            // The login function already updates localStorage with user and cart data
+            // Just need to update the state
+            const user = await getCurrentUser();
+            console.log('Login - Fetched user data:', user);
+            
+            // Update the user state with fresh data
+            setUser(user);
             setIsLoggedIn(true);
             
+            // Get cart data from localStorage (already saved by login function)
+            const cartData = JSON.parse(localStorage.getItem('cart') || '{}');
+            
             // Dispatch cart data to Redux store
-            if (response.cart) {
-                console.log('Dispatching cart data:', response.cart);
+            if (cartData && Array.isArray(cartData.items)) {
+                console.log('Dispatching cart data from localStorage:', cartData);
                 dispatch(setCartFromLogin({
-                    items: Array.isArray(response.cart.items) ? response.cart.items : [],
-                    total: response.cart.total || 0
+                    items: cartData.items,
+                    total: cartData.total || 0
                 }));
             } else {
-                // If no cart data, ensure we clear any existing cart
-                dispatch(setCartFromLogin([]));
+                // If no cart data, initialize empty cart
+                console.log('No cart data found, initializing empty cart');
+                dispatch(setCartFromLogin({ items: [], total: 0 }));
             }
             
-            return response;
+            return { ...loginResponse, user }; // Return the updated user data
         } catch (error) {
+            console.error('Login error in AuthContext:', error);
             throw error;
         }
     };
@@ -58,7 +79,18 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await register(userData);
             if (response && response.user) {
+                // Update user state
                 setUser(response.user);
+                
+                // Handle cart data from registration if available
+                if (response.cart) {
+                    const cartData = {
+                        items: response.cart.items || [],
+                        total: response.cart.total || 0
+                    };
+                    dispatch(setCartFromLogin(cartData));
+                }
+                
                 return response;
             } else {
                 throw new Error('Invalid response from server');
@@ -73,22 +105,39 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const handleLogout = () => {
-        // Clear user state
-        setUser(null);
-        setIsLoggedIn(false);
-        
-        // Clear cart state in Redux
-        dispatch(resetCart());
-        
-        // Clear any cart state
-        window.dispatchEvent(new Event('storage'));
-        
-        // Clear any other context states that might exist
-        window.dispatchEvent(new Event('authStateChanged'));
-        
-        // Call the logout service
-        logout();
+    const handleLogout = async () => {
+        try {
+            // First, call the logout service
+            const result = await logout();
+            
+            // Clear user state
+            setUser(null);
+            setIsLoggedIn(false);
+            
+            // Clear cart state in Redux
+            dispatch(resetCart());
+            
+            // Clear any cart state
+            window.dispatchEvent(new Event('storage'));
+            
+            // Clear any other context states that might exist
+            window.dispatchEvent(new Event('authStateChanged'));
+            
+            return result;
+        } catch (error) {
+            console.error('Error during logout:', error);
+            // Still clear local state even if server logout fails
+            setUser(null);
+            setIsLoggedIn(false);
+            dispatch(resetCart());
+            window.dispatchEvent(new Event('storage'));
+            window.dispatchEvent(new Event('authStateChanged'));
+            
+            return {
+                success: false,
+                message: error.message || 'Error during logout'
+            };
+        }
     };
 
     const value = {

@@ -2,6 +2,8 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cartRoutes = require('./routes/cart');
 const authRoutes = require('./routes/auth');
+const contactRoutes = require('./routes/contact');
+const adminRoutes = require('./routes/admin');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
@@ -29,8 +31,10 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

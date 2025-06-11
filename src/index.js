@@ -20,6 +20,9 @@ import {
 import ScrollToTop from "./components/ScrollToTop";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute";
+import GuestRoute from "./components/GuestRoute";
+import AdminRoute from "./components/AdminRoute";
+import AdminDashboard from "./components/AdminDashboard";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
@@ -34,8 +37,14 @@ root.render(
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/cart" element={<Cart />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            
+            {/* Guest only routes */}
+            <Route element={<GuestRoute />}>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+            </Route>
+            
+            {/* Protected routes */}
             <Route
               path="/checkout"
               element={
@@ -46,6 +55,12 @@ root.render(
             />
             <Route path="*" element={<PageNotFound />} />
             <Route path="/product/*" element={<PageNotFound />} />
+            
+            {/* Admin Routes */}
+            <Route element={<AdminRoute />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              {/* Add more admin routes here as needed */}
+            </Route>
           </Routes>
         </AuthProvider>
       </Provider>

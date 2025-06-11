@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
         });
         if (existingUser) {
             return res.status(400).json({ 
-                message: 'Email already registered' 
+                message: 'Email or username already registered' 
             });
         }
 
@@ -35,9 +35,13 @@ router.post('/register', async (req, res) => {
         });
         await user.save();
 
-        // Create JWT token
+        // Create JWT token with isAdmin flag
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            { 
+                userId: user._id, 
+                email: user.email,
+                isAdmin: user.isAdmin || false
+            },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -51,6 +55,7 @@ router.post('/register', async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                isAdmin: user.isAdmin || false,
                 cartId: user.cartId
             },
             cart: cart ? {
@@ -60,7 +65,8 @@ router.post('/register', async (req, res) => {
             } : null
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Registration error:', error);
+        res.status(500).json({ message: 'Server error during registration' });
     }
 });
 
@@ -81,9 +87,13 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Create JWT token
+        // Create JWT token with isAdmin flag
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            { 
+                userId: user._id, 
+                email: user.email,
+                isAdmin: user.isAdmin || false
+            },
             process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
@@ -97,6 +107,7 @@ router.post('/login', async (req, res) => {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                isAdmin: user.isAdmin || false,
                 cartId: user.cartId
             },
             cart: cart ? {
@@ -110,7 +121,8 @@ router.post('/login', async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
 });
 
@@ -126,9 +138,33 @@ const verifyToken = (req, res, next) => {
         req.user = decoded;
         next();
     } catch (error) {
+        console.error('Token verification error:', error);
         res.status(401).json({ message: 'Invalid token' });
     }
 };
+
+// Get current user data
+router.get('/me', verifyToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json({ 
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                isAdmin: user.isAdmin || false,
+                cartId: user.cartId
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user data:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 // Get user profile (protected route)
 router.get('/profile', verifyToken, async (req, res) => {
@@ -137,36 +173,49 @@ router.get('/profile', verifyToken, async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-
+        
+        // Remove sensitive data before sending user data
+        const userData = user.toObject();
+        delete userData.password;
+        
         res.json({
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email
-            }
+            ...userData,
+            isAdmin: user.isAdmin || false
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error fetching user profile:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
 // Logout user
 router.post('/logout', verifyToken, async (req, res) => {
     try {
-        // Clear any session data
-        req.session.destroy();
+        // Get userId from token first, fallback to request body
+        const userId = req.user?.userId || req.body?.userId;
         
-        // Clear cart data for this user
-        const cart = await Cart.findOne({ userId: req.user.userId });
-        if (cart) {
-            cart.items = [];
-            cart.total = 0;
-            await cart.save();
+        if (!userId) {
+            console.warn('No userId provided for logout');
+            return res.json({ 
+                success: true,
+                message: 'Logged out (no user ID provided)' 
+            });
         }
         
-        res.json({ message: 'Logged out successfully' });
+        // Just log the logout, don't clear the cart
+        console.log(`User ${userId} logged out successfully (cart preserved)`);
+        
+        res.json({ 
+            success: true,
+            message: 'Logged out successfully' 
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Logout error:', error);
+        // Still return success since the client will clear local data anyway
+        res.json({ 
+            success: true,
+            message: 'Logged out (server error but local data cleared)'
+        });
     }
 });
 

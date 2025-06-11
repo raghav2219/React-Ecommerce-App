@@ -1,17 +1,68 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useAuth } from '../context/AuthContext';
+import { getCurrentUser, logout } from '../services/authService';
+import { toast } from 'react-hot-toast';
 
 const Navbar = () => {
     const state = useSelector(state => state.handleCart);
-    const { user, logout } = useAuth();
+    const { user: contextUser, logout, isLoggedIn } = useAuth();
+    const [currentUser, setCurrentUser] = useState(contextUser);
     const navigate = useNavigate();
-    const isLoggedIn = useAuth().isLoggedIn;
+    
+    // Update current user when context user changes
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (isLoggedIn) {
+                try {
+                    const userData = await getCurrentUser();
+                    if (userData) {
+                        setCurrentUser(userData);
+                    }
+                } catch (error) {
+                    console.error('Error fetching user data in Navbar:', error);
+                }
+            } else {
+                setCurrentUser(null);
+            }
+        };
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+        fetchUserData();
+    }, [isLoggedIn]);
+
+    const handleLogout = async () => {
+        try {
+            // Call the logout function from AuthContext which handles all the cleanup
+            const result = await logout();
+            
+            // Update the current user state
+            setCurrentUser(null);
+            
+            // Show appropriate message
+            if (result && result.success) {
+                toast.success(result.message || 'Logged out successfully');
+            } else {
+                toast.success('Logged out successfully (local data cleared)');
+            }
+            
+            // Redirect to login page after a short delay
+            setTimeout(() => {
+                navigate('/login');
+            }, 800);
+            
+        } catch (error) {
+            console.error('Logout error:', error);
+            
+            // Still clear the current user state
+            setCurrentUser(null);
+            
+            // Show error message
+            toast.error(error.message || 'An unexpected error occurred during logout');
+            
+            // Redirect to login page
+            navigate('/login');
+        }
     };
     return (
         <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
@@ -77,13 +128,32 @@ const Navbar = () => {
                                 Contact
                             </NavLink>
                         </li>
+                        {currentUser?.isAdmin && (
+                            <li className="nav-item">
+                                <NavLink 
+                                    to="/admin" 
+                                    className={({ isActive }) => 
+                                        `nav-link fw-semibold px-3 ${isActive ? 'active' : ''}`
+                                    }
+                                    style={({ isActive }) => ({
+                                        color: isActive ? '#0d6efd' : '#333',
+                                        borderBottom: isActive ? '2px solid #0d6efd' : 'none'
+                                    })}
+                                >
+                                    <i className="fas fa-tachometer-alt me-1"></i> Admin
+                                </NavLink>
+                            </li>
+                        )}
                     </ul>
                     <div className="buttons text-center d-flex align-items-center">
                         {isLoggedIn ? (
                             <div className="d-flex align-items-center">
                                 <span className="me-3 fw-semibold text-primary">
                                     <i className="fas fa-user-circle me-1"></i>
-                                    Welcome, {user?.name || user?.email?.split('@')[0]}
+                                    Welcome, {currentUser?.name || currentUser?.email?.split('@')[0]}
+                                    {currentUser?.isAdmin && (
+                                        <span className="ms-2 badge bg-success">Admin</span>
+                                    )}
                                 </span>
                                 <button 
                                     onClick={handleLogout}

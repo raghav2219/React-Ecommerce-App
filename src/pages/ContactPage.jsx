@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { Footer, Navbar } from "../components";
 import { toast } from "react-hot-toast";
+import axios from 'axios';
+import { FaEnvelope, FaMapMarkerAlt, FaPhone, FaClock, FaPaperPlane, FaUser, FaTag, FaComment } from 'react-icons/fa';
+import { FaFacebookF, FaTwitter, FaInstagram, FaLinkedin } from 'react-icons/fa6';
 
 const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -29,7 +32,7 @@ const ContactPage = () => {
         if (!value.trim()) {
           newErrors.name = 'Name is required';
         } else if (value.length < 2) {
-          newErrors.name = 'Name must be at least 2 characters';
+          newErrors.name = 'Name must be at least 2 characters long';
         } else {
           delete newErrors.name;
         }
@@ -46,8 +49,8 @@ const ContactPage = () => {
       case 'subject':
         if (!value.trim()) {
           newErrors.subject = 'Subject is required';
-        } else if (value.length < 3) {
-          newErrors.subject = 'Subject must be at least 3 characters';
+        } else if (value.length < 5) {
+          newErrors.subject = 'Subject must be at least 5 characters long';
         } else {
           delete newErrors.subject;
         }
@@ -56,38 +59,38 @@ const ContactPage = () => {
         if (!value.trim()) {
           newErrors.message = 'Message is required';
         } else if (value.length < 10) {
-          newErrors.message = 'Message must be at least 10 characters';
+          newErrors.message = 'Message must be at least 10 characters long';
         } else {
           delete newErrors.message;
         }
         break;
-      default:
-        break;
     }
-    
     setErrors(newErrors);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     
     // Validate all fields
-    Object.entries(formData).forEach(([key, value]) => {
-      validateField(key, value);
-    });
-
+    const allFields = ['name', 'email', 'subject', 'message'];
+    allFields.forEach(field => validateField(field, formData[field]));
+    
     if (Object.keys(errors).length === 0) {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast.success('Message sent successfully! We will get back to you soon.');
+        setLoading(true);
+        const response = await axios.post('http://localhost:5000/api/contact/send', formData);
+        toast.success(response.data.message);
+        // Reset form after successful submission
         setFormData({ name: '', email: '', subject: '', message: '' });
+        setErrors({});
       } catch (error) {
-        toast.error('Failed to send message. Please try again.');
+        toast.error(error.response?.data?.message || 'Error sending message. Please try again.');
+      } finally {
+        setLoading(false);
       }
+    } else {
+      toast.error('Please fix the errors in the form');
     }
-    setLoading(false);
   };
 
   return (
@@ -97,36 +100,36 @@ const ContactPage = () => {
         <div className="row align-items-center">
           <div className="col-lg-6 mb-4 mb-lg-0">
             <h1 className="display-4 fw-bold mb-4">
-              <i className="fas fa-envelope me-2 text-primary"></i>Get in Touch
+              <FaEnvelope className="me-2 text-primary" />Get in Touch
             </h1>
             <p className="lead mb-4">
               We're here to help! Whether you have questions about our products, 
               need support, or want to share feedback, we're just a message away.
             </p>
             <div className="contact-info mb-4">
-              <div className="info-item mb-4">
-                <i className="fas fa-map-marker-alt text-primary me-3"></i>
+              <div className="info-item d-flex mb-4">
+                <FaMapMarkerAlt className="text-primary me-3 mt-1" />
                 <div>
                   <h5 className="mb-1">Our Location</h5>
                   <p className="mb-0">123 Shopping Street, E-commerce City</p>
                 </div>
               </div>
-              <div className="info-item mb-4">
-                <i className="fas fa-phone text-primary me-3"></i>
+              <div className="info-item d-flex mb-4">
+                <FaPhone className="text-primary me-3 mt-1" />
                 <div>
                   <h5 className="mb-1">Phone</h5>
                   <p className="mb-0">+1 234 567 8900</p>
                 </div>
               </div>
-              <div className="info-item mb-4">
-                <i className="fas fa-envelope text-primary me-3"></i>
+              <div className="info-item d-flex mb-4">
+                <FaEnvelope className="text-primary me-3 mt-1" />
                 <div>
                   <h5 className="mb-1">Email</h5>
                   <p className="mb-0">support@reactecommerce.com</p>
                 </div>
               </div>
-              <div className="info-item">
-                <i className="fas fa-clock text-primary me-3"></i>
+              <div className="info-item d-flex">
+                <FaClock className="text-primary me-3 mt-1" />
                 <div>
                   <h5 className="mb-1">Working Hours</h5>
                   <p className="mb-0">Mon - Fri: 9:00 AM - 6:00 PM</p>
@@ -137,16 +140,16 @@ const ContactPage = () => {
               <h5 className="mb-3">Follow Us</h5>
               <div className="d-flex gap-2">
                 <a href="/" className="btn btn-outline-primary rounded-circle p-2">
-                  <i className="fab fa-facebook-f"></i>
+                  <FaFacebookF />
                 </a>
                 <a href="/" className="btn btn-outline-primary rounded-circle p-2">
-                  <i className="fab fa-twitter"></i>
+                  <FaTwitter />
                 </a>
                 <a href="/" className="btn btn-outline-primary rounded-circle p-2">
-                  <i className="fab fa-instagram"></i>
+                  <FaInstagram />
                 </a>
                 <a href="/" className="btn btn-outline-primary rounded-circle p-2">
-                  <i className="fab fa-linkedin"></i>
+                  <FaLinkedin />
                 </a>
               </div>
             </div>
@@ -158,7 +161,7 @@ const ContactPage = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-4">
                     <label htmlFor="name" className="form-label fw-semibold">
-                      <i className="fas fa-user me-2"></i>Full Name
+                      <FaUser className="me-2" />Full Name
                     </label>
                     <input
                       type="text"
@@ -178,7 +181,7 @@ const ContactPage = () => {
                   </div>
                   <div className="mb-4">
                     <label htmlFor="email" className="form-label fw-semibold">
-                      <i className="fas fa-envelope me-2"></i>Email Address
+                      <FaEnvelope className="me-2" />Email Address
                     </label>
                     <input
                       type="email"
@@ -198,7 +201,7 @@ const ContactPage = () => {
                   </div>
                   <div className="mb-4">
                     <label htmlFor="subject" className="form-label fw-semibold">
-                      <i className="fas fa-tag me-2"></i>Subject
+                      <FaTag className="me-2" />Subject
                     </label>
                     <input
                       type="text"
@@ -218,7 +221,7 @@ const ContactPage = () => {
                   </div>
                   <div className="mb-4">
                     <label htmlFor="message" className="form-label fw-semibold">
-                      <i className="fas fa-comment me-2"></i>Message
+                      <FaComment className="me-2" />Message
                     </label>
                     <textarea
                       className={`form-control ${errors.message ? 'is-invalid' : ''}`}
@@ -249,7 +252,7 @@ const ContactPage = () => {
                         </>
                       ) : (
                         <>
-                          <i className="fas fa-paper-plane me-2"></i>Send Message
+                          <FaPaperPlane className="me-2" />Send Message
                         </>
                       )}
                     </button>
